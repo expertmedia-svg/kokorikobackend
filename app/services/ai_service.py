@@ -52,86 +52,94 @@ async def ask_ai(
 
 
 async def _ask_openai(question: str, images_base64: Optional[List[str]] = None) -> dict:
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    
-    if images_base64:
-        content = [{"type": "text", "text": question}]
-        for img in images_base64:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{img}"}
-            })
-        messages.append({"role": "user", "content": content})
-    else:
-        messages.append({"role": "user", "content": question})
-    
-    payload = {
-        "model": "gpt-4o",
-        "messages": messages,
-        "max_tokens": 1000,
-        "temperature": 0.7
-    }
-    
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json=payload
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-    raw_response = data["choices"][0]["message"]["content"]
-    tokens = data.get("usage", {}).get("total_tokens", 0)
-    
-    return {
-        "reponse": raw_response,
-        "tokens": tokens,
-        "provider": "openai",
-        **_parse_ai_response(raw_response)
-    }
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+        if images_base64:
+            content = [{"type": "text", "text": question}]
+            for img in images_base64:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{img}"}
+                })
+            messages.append({"role": "user", "content": content})
+        else:
+            messages.append({"role": "user", "content": question})
+
+        payload = {
+            "model": "gpt-4o",
+            "messages": messages,
+            "max_tokens": 1000,
+            "temperature": 0.7
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        raw_response = data["choices"][0]["message"]["content"]
+        tokens = data.get("usage", {}).get("total_tokens", 0)
+
+        return {
+            "reponse": raw_response,
+            "tokens": tokens,
+            "provider": "openai",
+            **_parse_ai_response(raw_response)
+        }
+    except Exception as e:
+        print(f"OpenAI API error: {str(e)}")
+        return _demo_response(question)
 
 
 async def _ask_gemini(question: str, images_base64: Optional[List[str]] = None) -> dict:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    
-    parts = [{"text": f"{SYSTEM_PROMPT}\n\n{question}"}]
-    
-    if images_base64:
-        for img in images_base64:
-            parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": img
-                }
-            })
-    
-    payload = {
-        "contents": [{"parts": parts}],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 1000
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+
+        parts = [{"text": f"{SYSTEM_PROMPT}\n\n{question}"}]
+
+        if images_base64:
+            for img in images_base64:
+                parts.append({
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": img
+                    }
+                })
+
+        payload = {
+            "contents": [{"parts": parts}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 1000
+            }
         }
-    }
-    
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-        data = response.json()
-    
-    raw_response = data["candidates"][0]["content"]["parts"][0]["text"]
-    
-    return {
-        "reponse": raw_response,
-        "tokens": 0,
-        "provider": "gemini",
-        **_parse_ai_response(raw_response)
-    }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+        raw_response = data["candidates"][0]["content"]["parts"][0]["text"]
+
+        return {
+            "reponse": raw_response,
+            "tokens": 0,
+            "provider": "gemini",
+            **_parse_ai_response(raw_response)
+        }
+    except Exception as e:
+        print(f"Gemini API error: {str(e)}")
+        return _demo_response(question)
 
 
 def _parse_ai_response(text: str) -> dict:
