@@ -35,19 +35,22 @@ async def ask_ai(
     images_base64: Optional[List[str]] = None,
     context: Optional[str] = None
 ) -> dict:
-    """
-    Envoie une question à l'IA (OpenAI ou Gemini) et retourne la réponse structurée.
-    """
-    full_question = question
-    if context:
-        full_question = f"Contexte de l'élevage: {context}\n\nQuestion: {question}"
+    """Envoie une question à l'IA et retourne la réponse structurée."""
+    try:
+        full_question = question
+        if context:
+            full_question = f"Contexte de l'élevage: {context}\n\nQuestion: {question}"
 
-    if AI_PROVIDER == "gemini" and GEMINI_API_KEY:
-        return await _ask_gemini(full_question, images_base64)
-    elif AI_PROVIDER == "openai" and OPENAI_API_KEY:
-        return await _ask_openai(full_question, images_base64)
-    else:
-        # Mode démo si pas d'API key
+        if not OPENAI_API_KEY and not GEMINI_API_KEY:
+            return _demo_response(question)
+
+        if AI_PROVIDER == "openai" and OPENAI_API_KEY:
+            return await _ask_openai(full_question, images_base64)
+        elif AI_PROVIDER == "gemini" and GEMINI_API_KEY:
+            return await _ask_gemini(full_question, images_base64)
+        else:
+            return _demo_response(question)
+    except Exception:
         return _demo_response(question)
 
 
