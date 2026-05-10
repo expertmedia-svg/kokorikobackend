@@ -3,8 +3,7 @@ module.exports = {
     {
       name: 'kokoriko-backend',
       cwd: '/home/debian/projects/kokoriko-backend',
-      script: 'venv/bin/uvicorn',
-      args: 'app.main:app --host 127.0.0.1 --port 4223 --workers 4',
+      script: './start.sh',
       error_file: './logs/err.log',
       out_file: './logs/out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
