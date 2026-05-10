@@ -20,50 +20,54 @@ class DiagnosticRequest(BaseModel):
 @router.post("/diagnostic")
 async def ai_diagnostic(data: DiagnosticRequest, current_user=Depends(get_current_user)):
     """Diagnostic IA par texte."""
-    result = await ask_ai(data.question, context=data.contexte)
-    
-    diagnostic = AIDiagnostic(
-        user_id=str(current_user.id),
-        farm_id=data.farm_id,
-        flock_id=data.flock_id,
-        health_case_id=data.health_case_id,
-        type_input=InputType.texte,
-        question_utilisateur=data.question,
-        reponse_ia=result["reponse"],
-        diagnostic_probable=result.get("diagnostic_probable"),
-        niveau_gravite=result.get("niveau_gravite"),
-        causes_possibles=result.get("causes_possibles", []),
-        actions_immediates=result.get("actions_immediates", []),
-        conseils_biosecurite=result.get("conseils_biosecurite", []),
-        traitement_propose=result.get("traitement_propose"),
-        recommande_veterinaire=result.get("recommande_veterinaire", False),
-        ai_provider=result.get("provider", "openai"),
-        tokens_utilises=result.get("tokens", 0)
-    )
-    await diagnostic.insert()
-    
-    # Alerte si urgent
-    if result.get("niveau_gravite") == "urgent":
-        notif = Notification(
+    try:
+        result = await ask_ai(data.question, context=data.contexte)
+
+        diagnostic = AIDiagnostic(
             user_id=str(current_user.id),
-            titre="🚨 Situation urgente détectée par l'IA",
-            message="L'IA a détecté une situation urgente. Contactez immédiatement un vétérinaire.",
-            type="alerte_sante"
+            farm_id=data.farm_id,
+            flock_id=data.flock_id,
+            health_case_id=data.health_case_id,
+            type_input=InputType.texte,
+            question_utilisateur=data.question,
+            reponse_ia=result["reponse"],
+            diagnostic_probable=result.get("diagnostic_probable"),
+            niveau_gravite=result.get("niveau_gravite"),
+            causes_possibles=result.get("causes_possibles", []),
+            actions_immediates=result.get("actions_immediates", []),
+            conseils_biosecurite=result.get("conseils_biosecurite", []),
+            traitement_propose=result.get("traitement_propose"),
+            recommande_veterinaire=result.get("recommande_veterinaire", False),
+            ai_provider=result.get("provider", "openai"),
+            tokens_utilises=result.get("tokens", 0)
         )
-        await notif.insert()
-    
-    return {
-        "id": str(diagnostic.id),
-        "reponse": result["reponse"],
-        "diagnostic_probable": result.get("diagnostic_probable"),
-        "niveau_gravite": result.get("niveau_gravite"),
-        "causes_possibles": result.get("causes_possibles", []),
-        "actions_immediates": result.get("actions_immediates", []),
-        "conseils_biosecurite": result.get("conseils_biosecurite", []),
-        "traitement_propose": result.get("traitement_propose"),
-        "recommande_veterinaire": result.get("recommande_veterinaire", False),
-        "provider": result.get("provider")
-    }
+        await diagnostic.insert()
+
+        # Alerte si urgent
+        if result.get("niveau_gravite") == "urgent":
+            notif = Notification(
+                user_id=str(current_user.id),
+                titre="🚨 Situation urgente détectée par l'IA",
+                message="L'IA a détecté une situation urgente. Contactez immédiatement un vétérinaire.",
+                type="alerte_sante"
+            )
+            await notif.insert()
+
+        return {
+            "id": str(diagnostic.id),
+            "reponse": result["reponse"],
+            "diagnostic_probable": result.get("diagnostic_probable"),
+            "niveau_gravite": result.get("niveau_gravite"),
+            "causes_possibles": result.get("causes_possibles", []),
+            "actions_immediates": result.get("actions_immediates", []),
+            "conseils_biosecurite": result.get("conseils_biosecurite", []),
+            "traitement_propose": result.get("traitement_propose"),
+            "recommande_veterinaire": result.get("recommande_veterinaire", False),
+            "provider": result.get("provider")
+        }
+    except Exception as e:
+        print(f"AI diagnostic error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erreur diagnostic IA: {str(e)}")
 
 @router.post("/diagnostic/photo")
 async def ai_diagnostic_photo(
